@@ -28,6 +28,7 @@ class ChatClient:
         self.port = port
         self.socket = socket_context.socket
         self.communicator_sent = False
+        self.authenticated = False
 
         # Initial prompt
         self.prompt = f'[{name}@{socket.gethostname()}]> '
@@ -37,6 +38,17 @@ class ChatClient:
             self.socket.connect((host, port))
             print(f'Now connected to chat server@ port {self.port}')
             self.connected = True
+
+            while not self.authenticated:
+                task = input("Press R For Register / Press L For Log In: ")
+                if task == "R":
+                    self.register(self.name)
+                elif task == "L":
+                    password = input("Enter Your Password Here: ")
+                    self.login(self.name, password)
+                else:
+                    print("Please Enter Either R or L")
+
             # Send my name...
             send(self.socket, 'NAME: ' + self.name)
 
@@ -50,6 +62,24 @@ class ChatClient:
         except socket.error:
             print(f'Failed to connect to chat server @ port {self.port}')
             sys.exit(1)
+
+    def register(self, name):
+        send(self.socket, 'REGISTER:' + name)
+        response = receive(self.socket)
+        if response.startswith('REGISTERED:'):
+            password = response.split('REGISTERED:')[1]
+            print(f"Registered successfully! Your password is {password}")
+        else:
+            print(response)
+
+    def login(self, name, password):
+        send(self.socket, f'LOGIN:{name},{password}')
+        response = receive(self.socket)
+        if response == 'LOGIN_SUCCESS':
+            print("Logged in successfully!")
+            self.authenticated = True
+        else:
+            print(response)
 
     def cleanup(self):
         """Close the connection and wait for the thread to terminate."""

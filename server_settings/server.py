@@ -1,6 +1,7 @@
 import select
 import sys
-
+import random
+import hashlib
 from server_settings.socket_context import *
 from utils import *
 import signal
@@ -14,6 +15,7 @@ class Server:
         self.client_num = 0
         self.client_list = {}
         self.socket = socket_context.socket
+        self.registered_clients = {}
 
         signal.signal(CTRL_C, self.exit_handler)
         print(f"Server is starting at {SocketContext.server_host()} listening to port {SocketContext.server_port()}")
@@ -51,6 +53,34 @@ class Server:
 
                     print(
                         f'Chat server: got connection {client.fileno()} from {address}')
+
+                    passing = False
+
+                    while not passing:
+                        data = receive(client)
+                        if data.startswith('REGISTER:'):
+                            client_name = data.split('REGISTER:')[1]
+                            # Check if the client is already registered
+                            if client_name in self.registered_clients:
+                                send(client, 'ERROR: Name already registered')
+                            else:
+                                # Generate a simple password or ID for the client
+                                password = str(random.randint(10000, 99999))
+                                hashed_password = hashlib.sha256(password.encode()).hexdigest()
+                                self.registered_clients[client_name] = hashed_password
+                                send(client, f'Your password is: {password}')
+
+                        elif data.startswith('LOGIN:'):
+                            client_info = data.split('LOGIN:')[1].split(',')
+                            client_name = client_info[0]
+                            password = client_info[1]
+                            if (client_name in self.registered_clients and self.registered_clients[client_name]
+                                    == hashlib.sha256(password.encode()).hexdigest()):
+                                send(client, 'LOGIN_SUCCESS')
+                                passing = True
+                            else:
+                                send(client, 'ERROR: Invalid login')
+
                     # Read the login name
                     client_name = receive(client).split('NAME: ')[1]
                     self.client_list[client] = (address, client_name)
@@ -59,11 +89,7 @@ class Server:
                     self.outputs.append(client)
                     for output in self.outputs:
                         send(output, table_msg)
-
                     inputs.append(client)
-
-
-
 
                 else:
                     # handle all other sockets
