@@ -31,6 +31,7 @@ class Server:
         inputs = [self.socket]
         self.outputs = []
         running = True
+        communicator_dict = {}
         while running:
 
             """ Break If Exception Occurs """
@@ -67,15 +68,17 @@ class Server:
                 else:
                     # handle all other sockets
                     try:
-                        communicator = receive(sock)
-                        print(f'Communicator {communicator}')
+                        if not communicator_dict.get(sock):
+                            communicator = receive(sock)
+                            communicator_dict[sock] = communicator
+                        print(f'Communicator {communicator_dict}')
                         data = receive(sock)
                         if data:
                             # Send as new client's message...
                             msg = f'\n#[{self.get_client_name(sock)}]>> {data}'
 
                             for index, output in enumerate(self.outputs):
-                                if output != sock and index == communicator - 1:
+                                if output != sock and index == communicator_dict[sock] - 1:
                                     send(output, msg)
                         else:
                             print(f'Chat server: {sock.fileno()} hung up')

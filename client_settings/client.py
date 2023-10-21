@@ -9,7 +9,10 @@ stop_thread = False
 
 def get_and_send(client):
     while not stop_thread:
-        send(client.socket, client.communicator)
+        if not client.communicator_sent:
+            send(client.socket, client.communicator)
+            client.communicator_sent = True
+
         data = sys.stdin.readline().strip()
         if data:
             send(client.socket, data)
@@ -24,6 +27,7 @@ class ChatClient:
         self.host = host
         self.port = port
         self.socket = socket_context.socket
+        self.communicator_sent = False
 
         # Initial prompt
         self.prompt = f'[{name}@{socket.gethostname()}]> '
